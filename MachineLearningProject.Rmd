@@ -1,0 +1,89 @@
+---
+title: "Machine Learning Assignment"
+author: "Eric White"
+date: "July 25, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Overview
+Participants were asked to perform a set of 10 repetitions of the Unilateral Dumbbell Bicepts Curl in 5 fashions: exactly according to the specification (Class A), throwing the elbows to the front (Class B), lifting the dumbbell only halfway (Class C), lowering the dumbbell only halfway (Class D) and throwing the hips to the front (Class E).
+
+The purpose of this exercise is to predict the fashion in which the dumbbell was lifted.
+
+
+#Load the required libraries. 
+This exercise requires 3 packages to be loaded.
+```{r}
+library(caret)
+library(randomForest)
+library(ggplot2)
+
+```
+
+#Download the data
+The first step is to download the data and load it into R.
+```{r}
+TrainURL <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+TestURL <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+
+download.file(TrainURL, destfile = "Train.csv")
+download.file(TestURL, destfile = "Test.csv")
+Training <- read.csv("Train.csv") 
+Testing <- read.csv("Test.csv")
+```
+
+#Clean the data
+I created to subsets of the data. The first step was to remove the first 7 columns since it related to user information and wouldn't be a good predictor. I then remove the NA columns from the Test set. The Training set had values, which made the removal of columns a little more complicated. The Training set removes sections of rows by column number. Both data sets end up with the same number of columns.
+```{r}
+subTraining <- Training[, c(8:160)]
+subTesting <- Testing[, c(8:160)]
+
+subTesting <- subTesting[,colSums(is.na(subTesting))<nrow(subTesting)]
+subTraining <- subTraining[, -c(5:29)]
+subTraining <- subTraining[, -c(18:27)]
+subTraining <- subTraining[, -c(27:41)]
+subTraining <- subTraining[, -c(30:44)]
+subTraining <- subTraining[, -c(31:40)]
+subTraining <- subTraining[, -c(43:57)]
+subTraining <- subTraining[, -c(44:53)]
+```
+
+#Build Model
+I set the seed to 1234 in order to ensure that this exercise could be reproduced. The data is broken into 2 sets in order to validate the model. The rf_test is our validation. Train Control is using a form of cross validation.
+
+I chose random forest since it is known to be highly accurate.
+```{r}
+set.seed(1234)
+inTrain <- createDataPartition(subTraining$classe, p = 0.7, list = FALSE)
+rf_train <- subTraining[inTrain, ]
+rf_test <- subTraining[-inTrain, ]
+
+rf <- train(classe ~ ., data = rf_train, method = "rf", trControl = trainControl(method = "cv", number = 5, allowParallel = TRUE, verboseIter = FALSE))
+print(rf, digits = 5)
+```
+
+#Predict and Validate Model
+The model is validated in order to see how well it performs. In this case we get very good results. This model appears to be very accurate.
+```{r}
+predict_rf <- predict(rf, rf_test)
+(conf_matrix <- confusionMatrix(rf_test$classe, predict_rf))
+```
+
+#Accuracy
+The accuracy level of the model is about 99.5%, which is very accurate. 
+```{r}
+conf_matrix$overall[1]
+```
+
+
+#Test Set Prediction for Quiz
+The results listed below are what will be inputted into the quiz and are based upon the test data. 
+```{r}
+predict(rf, subTesting)
+
+```
+
